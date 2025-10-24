@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,13 +16,35 @@
       background-color: #111;
       color: #fff;
       text-align: center;
-      padding: 1.2rem;
-      font-size: 1.5rem;
+      padding: 1rem;
+      font-size: 1.4rem;
       letter-spacing: 1px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+    button {
+      background-color: #007aff;
+      color: white;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    button:hover {
+      background-color: #005bb5;
     }
     #gallery {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 10px;
       padding: 20px;
       max-width: 1200px;
@@ -50,21 +71,44 @@
       margin-top: 50px;
       font-size: 1.1rem;
     }
+    #qrContainer {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
 
-<header>📸 SnapSnapBooth Event Gallery</header>
+<header>
+  <div>📸 SnapSnapBooth Event Gallery</div>
+  <div class="buttons">
+    <button id="downloadAllBtn">⬇️ Download All</button>
+    <button id="shareBtn">🔗 Share Gallery</button>
+  </div>
+</header>
+
 <div id="gallery" class="gallery"></div>
 <div id="emptyMessage" class="empty" style="display:none;">
   No media found for this event.
 </div>
 
+<div id="qrContainer">
+  <canvas id="qrCanvas"></canvas>
+  <p>Scan to view this gallery</p>
+</div>
+
+<!-- JSZip for download-all feature -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- QR code generator -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
 <script>
-  // Get the event ID from the URL, e.g., /gallery/<eventId>
   const pathParts = window.location.pathname.split('/');
   const eventId = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
   const dbUrl = `https://snapsnapbooth-2aefe-default-rtdb.firebaseio.com/events/${eventId}/media.json`;
+  const galleryUrl = `${window.location.origin}/gallery/${eventId}`;
 
   async function loadGallery() {
     try {
@@ -83,7 +127,7 @@
         const item = document.createElement('div');
         item.className = 'item';
 
-        if (url.endsWith('.mp4') || url.endsWith('.mov')) {
+        if (url.match(/\.(mp4|mov)$/i)) {
           const video = document.createElement('video');
           video.src = url;
           video.controls = true;
@@ -100,6 +144,55 @@
       console.error('Error loading gallery:', err);
     }
   }
+
+  async function downloadAll() {
+    try {
+      const res = await fetch(dbUrl);
+      const media = await res.json();
+      if (!media) return alert("No media found.");
+
+      const zip = new JSZip();
+      let count = 0;
+
+      for (const [key, url] of Object.entries(media)) {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const fileExt = url.split('.').pop().split('?')[0];
+        zip.file(`${key}.${fileExt}`, blob);
+        count++;
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `SnapSnapBooth_${eventId}.zip`);
+    } catch (err) {
+      console.error(err);
+      alert("Error downloading media files.");
+    }
+  }
+
+  function shareGallery() {
+    if (navigator.share) {
+      navigator.share({
+        title: "SnapSnapBooth Gallery",
+        text: "Check out my event gallery!",
+        url: galleryUrl
+      });
+    } else {
+      // Fallback: copy to clipboard and show QR
+      navigator.clipboard.writeText(galleryUrl).then(() => {
+        alert("Gallery link copied to clipboard!");
+      });
+      const qr = new QRious({
+        element: document.getElementById('qrCanvas'),
+        value: galleryUrl,
+        size: 200
+      });
+      document.getElementById('qrContainer').style.display = 'block';
+    }
+  }
+
+  document.getElementById('downloadAllBtn').addEventListener('click', downloadAll);
+  document.getElementById('shareBtn').addEventListener('click', shareGallery);
 
   loadGallery();
 </script>
