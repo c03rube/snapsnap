@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapSnapBooth Gallery</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #fafafa;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #111;
+      color: #fff;
+      text-align: center;
+      padding: 1.2rem;
+      font-size: 1.5rem;
+      letter-spacing: 1px;
+    }
+    #gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .item {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease;
+    }
+    .item:hover {
+      transform: scale(1.03);
+    }
+    .item img, .item video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .empty {
+      text-align: center;
+      color: #777;
+      margin-top: 50px;
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>📸 SnapSnapBooth Event Gallery</header>
+<div id="gallery" class="gallery"></div>
+<div id="emptyMessage" class="empty" style="display:none;">
+  No media found for this event.
+</div>
+
+<script>
+  // Get the event ID from the URL, e.g., /gallery/<eventId>
+  const pathParts = window.location.pathname.split('/');
+  const eventId = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+  const dbUrl = `https://snapsnapbooth-2aefe-default-rtdb.firebaseio.com/events/${eventId}/media.json`;
+
+  async function loadGallery() {
+    try {
+      const res = await fetch(dbUrl);
+      const media = await res.json();
+
+      const gallery = document.getElementById('gallery');
+      const emptyMsg = document.getElementById('emptyMessage');
+      
+      if (!media || Object.keys(media).length === 0) {
+        emptyMsg.style.display = 'block';
+        return;
+      }
+
+      for (const [key, url] of Object.entries(media)) {
+        const item = document.createElement('div');
+        item.className = 'item';
+
+        if (url.endsWith('.mp4') || url.endsWith('.mov')) {
+          const video = document.createElement('video');
+          video.src = url;
+          video.controls = true;
+          item.appendChild(video);
+        } else {
+          const img = document.createElement('img');
+          img.src = url;
+          item.appendChild(img);
+        }
+
+        gallery.appendChild(item);
+      }
+    } catch (err) {
+      console.error('Error loading gallery:', err);
+    }
+  }
+
+  loadGallery();
+</script>
+
+</body>
+</html>
